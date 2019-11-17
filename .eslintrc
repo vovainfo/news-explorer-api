@@ -1,0 +1,12 @@
+{
+  "extends": "airbnb-base",
+  "overrides": [
+    {
+      "files": ["*.js"],
+//      "excludedFiles": "*.test.js",
+      "rules": {
+        "no-underscore-dangle": ["error", { "allow": ["_id"] }]
+      }
+    }
+  ]
+}
