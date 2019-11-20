@@ -1,8 +1,12 @@
 const express = require('express');
 const mongoose = require('mongoose');
-//const path = require('path');
+const { celebrate, Joi } = require('celebrate');
+
 const bodyParser = require('body-parser');
 const { errors } = require('celebrate');
+const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
+
 require('dotenv').config();
 
 const articlesRouter = require('./routes/articles');
@@ -11,13 +15,19 @@ const auth = require('./middlewares/auth');
 const { login, createUser } = require('./controllers/users');
 const { requestLogger, errorLogger } = require('./middlewares/logger');
 
+const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }); // 100 за 15 минут
+
+
 // Слушаем 3000 порт
 const { PORT = 3000 } = process.env;
 
 const app = express();
 
+app.use(limiter);
+app.use(helmet());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+
 mongoose.connect('mongodb://localhost:27017/newsdb', {
   useNewUrlParser: true,
   useCreateIndex: true,
@@ -31,12 +41,28 @@ app.get('/crash-test', () => {
   }, 0);
 });
 
-app.post('/signin', login);
-app.post('/signup', createUser);
+app.post('/signin',
+  celebrate({
+    body: Joi.object().keys({
+      email: Joi.string().email().required(),
+      password: Joi.string().required(),
+    }),
+  }),
+  login);
+
+app.post('/signup',
+  celebrate({
+    body: Joi.object().keys({
+      name: Joi.string().min(2).max(30).required(),
+      email: Joi.string().email().required(),
+      password: Joi.string().required(),
+    }),
+  }),
+  createUser);
+
 
 app.use(auth);
 
-//app.use(express.static(path.join(__dirname, 'public')));
 app.use('/articles', articlesRouter);
 app.use('/users', usersRouter);
 
@@ -50,7 +76,8 @@ app.use((err, req, res, next) => {
 
   res
     .status(statusCode)
-    .send({ message: message ? 'На сервере произошла ошибка' : message });
+    // eslint-disable-next-line no-unneeded-ternary
+    .send({ message: (message ? message : 'На сервере произошла ошибка') });
 });
 app.use('*', (req, res) => res.status(404).send({ message: 'Запрашиваемый ресурс не найден' }));
 

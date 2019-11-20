@@ -20,4 +20,4 @@ articlesRouter.post('/', celebrate({
 
 articlesRouter.delete('/:id', delArticle);
 
-module.exports = cardsRouter;
+module.exports = articlesRouter;
