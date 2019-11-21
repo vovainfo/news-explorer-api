@@ -9,17 +9,23 @@ const helmet = require('helmet');
 
 require('dotenv').config();
 
+const {
+  MONGO_SERVER, DEF_PORT, RATELIMIT_WINDOW, RATELIMIT_MAX,
+} = require('./config');
+const { SERVER_ERROR, ERROR_404 } = require('./error-text');
+
+
 const articlesRouter = require('./routes/articles');
 const usersRouter = require('./routes/users');
 const auth = require('./middlewares/auth');
 const { login, createUser } = require('./controllers/users');
 const { requestLogger, errorLogger } = require('./middlewares/logger');
 
-const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }); // 100 за 15 минут
+const limiter = rateLimit({ windowMs: RATELIMIT_WINDOW, max: RATELIMIT_MAX }); // 100 за 15 минут
 
 
 // Слушаем 3000 порт
-const { PORT = 3000 } = process.env;
+const { PORT = DEF_PORT } = process.env;
 
 const app = express();
 
@@ -28,18 +34,20 @@ app.use(helmet());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-mongoose.connect('mongodb://localhost:27017/newsdb', {
+mongoose.connect(MONGO_SERVER, {
   useNewUrlParser: true,
   useCreateIndex: true,
   useFindAndModify: false,
 });
 app.use(requestLogger);
 
+/*
 app.get('/crash-test', () => {
   setTimeout(() => {
     throw new Error('Сервер сейчас упадёт');
   }, 0);
 });
+*/
 
 app.post('/signin',
   celebrate({
@@ -77,9 +85,9 @@ app.use((err, req, res, next) => {
   res
     .status(statusCode)
     // eslint-disable-next-line no-unneeded-ternary
-    .send({ message: (message ? message : 'На сервере произошла ошибка') });
+    .send({ message: (message ? message : SERVER_ERROR) });
 });
-app.use('*', (req, res) => res.status(404).send({ message: 'Запрашиваемый ресурс не найден' }));
+app.use('*', (req, res) => res.status(404).send({ message: ERROR_404 }));
 
 app.listen(PORT, () => {
   // eslint-disable-next-line no-console
