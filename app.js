@@ -10,9 +10,10 @@ const helmet = require('helmet');
 require('dotenv').config();
 
 const {
-  MONGO_SERVER, DEF_PORT, RATELIMIT_WINDOW, RATELIMIT_MAX,
+  DEV_MONGO_SERVER, DEF_PORT, RATELIMIT_WINDOW, RATELIMIT_MAX,
 } = require('./config');
-const { SERVER_ERROR, ERROR_404 } = require('./error-text');
+const { SERVER_ERROR, ERROR_404 } = require('./errors/error-text');
+const Error404 = require('./errors/error404');
 
 
 const articlesRouter = require('./routes/articles');
@@ -25,7 +26,7 @@ const limiter = rateLimit({ windowMs: RATELIMIT_WINDOW, max: RATELIMIT_MAX }); /
 
 
 // Слушаем 3000 порт
-const { PORT = DEF_PORT } = process.env;
+const { PORT = DEF_PORT, MONGO_SERVER, NODE_ENV } = process.env;
 
 const app = express();
 
@@ -34,7 +35,7 @@ app.use(helmet());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-mongoose.connect(MONGO_SERVER, {
+mongoose.connect(NODE_ENV === 'production' ? MONGO_SERVER : DEV_MONGO_SERVER, {
   useNewUrlParser: true,
   useCreateIndex: true,
   useFindAndModify: false,
@@ -74,20 +75,20 @@ app.use(auth);
 app.use('/articles', articlesRouter);
 app.use('/users', usersRouter);
 
-app.use(errors()); // обработчик ошибок celebrate
+
+app.use('*', (req, res, next) => next(new Error404(ERROR_404)));
+
 app.use(errorLogger);
+app.use(errors()); // обработчик ошибок celebrate
 
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
-  // если у ошибки нет статуса, выставляем 500
-  const { statusCode = 500, message } = err;
-
+  // если у ошибки нет статуса, выставляем 500, нет мессаджа - ставим дефолтный
+  const { statusCode = 500, message = SERVER_ERROR } = err;
   res
     .status(statusCode)
-    // eslint-disable-next-line no-unneeded-ternary
-    .send({ message: (message ? message : SERVER_ERROR) });
+    .send({ message });
 });
-app.use('*', (req, res) => res.status(404).send({ message: ERROR_404 }));
 
 app.listen(PORT, () => {
   // eslint-disable-next-line no-console

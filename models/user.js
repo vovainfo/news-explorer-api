@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 require('mongoose-type-email');
 const bcrypt = require('bcryptjs');
-const { WRONG_EMAIL_OR_PASSWORD } = require('./../error-text');
+const { WRONG_EMAIL_OR_PASSWORD } = require('../errors/error-text');
 
 const userSchema = new mongoose.Schema({
   name: {

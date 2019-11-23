@@ -36,7 +36,7 @@ module.exports.login = (req, res, next) => {
 };
 
 module.exports.getUserMe = (req, res, next) => {
-  User.findById(req.user._id)
+  User.findById(req.user._id, '-_id')
     .then((user) => { res.send(user); })
     .catch((err) => next(new Error500(err.message)));
 };
